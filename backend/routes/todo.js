@@ -52,4 +52,85 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Define a PUT route for marking a todo as completed
+router.put("/:todoId/completed", async (req, res) => {
+  // Extract the `todoId` from the route parameter and convert it to a number
+  const todoId = Number(req.params.todoId);
+
+  try {
+    // Use Prisma to update the todo with the specified ID
+    const todo = await prisma.todo.update({
+      where: {
+        id: todoId,        // Match the todo based on its unique ID
+      },
+      data: {
+        completed: true,  // Update the `completed` field to `true`
+      },
+    });
+
+    // Respond with a success status and include the updated todo's ID
+    res.status(200).json({
+      success: true,
+      todo: todo.id,
+    });
+  } catch (e) {
+    // Handle any errors that occur during the update
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong, please try again later",
+    });
+  }
+});
+
+// Define a DELETE route for removing a todo by its ID
+router.delete("/:todoId", async (req, res) => {
+  // Extract the `todoId` from the route parameter and convert it to a number
+  const todoId = Number(req.params.todoId);
+
+  try {
+    // Use Prisma to delete the todo with the specified ID
+    const todo = await prisma.todo.findUnique({
+      where: {
+        id: todoId, // Match the todo based on its unique ID
+      },
+    });
+
+    // If todo doesn't exist, return a 404 error
+    if (!todo) {
+        return res.status(404).json({
+            success: false,
+            message: "Todo not found",
+        });
+    }
+
+    // Check if todo is completed 
+    if (!todo.completed) {
+        return res.status(400).json({
+            success: false, 
+            message: "Cannot delete an incomplete todo task",
+        });
+
+    }
+
+    // If todo is completed, delete it
+    await prisma.todo.delete ({
+        where: {
+            id: todoId,
+        },
+    });
+
+    // Respond with a success status and confirmation of the deletion
+    res.status(200).json({
+      success: true,
+      todo: todoId, // Return the deleted todo's ID for reference
+    });
+  } catch (e) {
+    // Handle any errors that occur during the deletion process
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong, please try again later",
+    });
+  }
+});
+
 export default router;
