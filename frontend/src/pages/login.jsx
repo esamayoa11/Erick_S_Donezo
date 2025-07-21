@@ -42,17 +42,11 @@ const { register, handleSubmit } = useForm({
       <div className="max-w-md w-full bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
 
-      {/* Conditional alert rendering */}
-        {alert.show && (
-          <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
-            {alert.message}
-          </div>
-        )}
+      {/* Use LoginAlert with props */}
+        <LoginAlert alert={alert} showAlert={showAlert} />
 
-        {/* Pass everything needed into the LoginForm */}
+        {/* Only one LoginForm with props */}
         <LoginForm handleSubmit={handleSubmit} loginUser={loginUser} register={register} />
-
-        <LoginForm />
 
         <p className="mt-4 text-center text-sm">
           Don't have an account?{" "}
@@ -64,30 +58,23 @@ const { register, handleSubmit } = useForm({
     </div>
   );
 }
-
-// Login form to now accept props from parent 
-function LoginForm() {
+// Updated to receive props
+function LoginForm({ handleSubmit, loginUser, register }) {
   return (
     <form className="space-y-4" onSubmit={handleSubmit(loginUser)}>
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
           Email
         </label>
         <input
           id="email"
           type="email"
           className="input input-bordered w-full"
-           {...register("email")}
+          {...register("email")}
         />
       </div>
       <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
@@ -101,5 +88,28 @@ function LoginForm() {
         Login
       </button>
     </form>
+  );
+}
+
+// Updated to receive props
+function LoginAlert({ alert, showAlert }) {
+  return (
+    <>
+      {
+        alert.show && (
+          <div className="alert alert-error">
+            <div className="inline-flex justify-stretch items-center w-full justify-between">
+              {alert.message}
+              <button 
+                onClick={() => showAlert({ message: "", show: false })} 
+                className="btn btn-ghost btn-circle"
+              >
+                X
+              </button>
+            </div>
+          </div>
+        )
+      }
+    </>
   );
 }
