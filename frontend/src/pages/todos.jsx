@@ -1,10 +1,21 @@
 import { useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form"; 
+import getAxiosClient from "../axios-instance";
 
 export default function Todos() {
   // 47. Create ref for the modal dialog element
   const modalRef = useRef();
+
+  // React query mutation to create a new todo on the server
+  const { mutate: createNewTodo } = useMutation({
+    mutationKey: ["newTodo"],
+    mutationFn: async (newTodo) => {
+      const axiosInstance = await getAxiosClient();
+      const { data } = await axiosInstance.post("http://localhost:8080/todos", newTodo);
+      return data;
+    },
+  });
 
   // 49. Function to toggle the modal open/close
   const toggleNewTodoModal = () => {
@@ -26,6 +37,7 @@ export default function Todos() {
   // 54. Placeholder submit handler — just closes modal for now
   const handleNewTodo = (values) => {
     console.log("Form submitted with:", values);  // debug log
+    createNewTodo(values);
     toggleNewTodoModal();
   };
 
