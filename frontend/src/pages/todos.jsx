@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
 export default function Todos() {
+  // 47. Create ref for the modal dialog element
   const modalRef = useRef();
 
+  // 49. Function to toggle the modal open/close
   const toggleNewTodoModal = () => {
     if (modalRef.current.open) {
       modalRef.current.close();
@@ -13,7 +15,21 @@ export default function Todos() {
     }
   };
 
-  // Child components inside Todos to access modalRef and toggle handler
+  // 51. Set up react-hook-form
+  const { register, handleSubmit } = useForm({
+    defaultValues: {
+      name: "",
+      description: ""
+    }
+  });
+
+  // 54. Placeholder submit handler — just closes modal for now
+  const handleNewTodo = (values) => {
+    console.log("Form submitted with:", values);  // debug log
+    toggleNewTodoModal();
+  };
+
+  // 44. Button to open the modal
   function NewTodoButton() {
     return (
       <button className="btn btn-primary" onClick={toggleNewTodoModal}>
@@ -22,30 +38,36 @@ export default function Todos() {
     );
   }
 
+  // 46. Modal with the form and inputs registered with react-hook-form
   function TodoModal() {
     return (
       <dialog ref={modalRef} className="modal">
         <div className="modal-box">
           <h3 className="font-bold text-lg">New Todo</h3>
-          <form>
+          {/* 55. Add onSubmit handler with handleSubmit wrapping handleNewTodo */}
+          <form onSubmit={handleSubmit(handleNewTodo)}>
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text">Name of Todo</span>
               </div>
+              {/* 52. Register input "name" */}
               <input
                 type="text"
                 placeholder="Type here"
                 className="input input-bordered w-full"
+                {...register("name")}
               />
             </label>
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text">Description</span>
               </div>
+              {/* 53. Register input "description" */}
               <input
                 type="text"
                 placeholder="Type here"
                 className="input input-bordered w-full"
+                {...register("description")}
               />
             </label>
             <div className="modal-action">
@@ -54,8 +76,8 @@ export default function Todos() {
               </button>
               <button
                 type="button"
-                className="btn btn-ghost"
                 onClick={toggleNewTodoModal}
+                className="btn btn-ghost"
               >
                 Close
               </button>
@@ -66,6 +88,7 @@ export default function Todos() {
     );
   }
 
+  // Render the button and modal
   return (
     <>
       <NewTodoButton />
