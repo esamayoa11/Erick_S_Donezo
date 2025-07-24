@@ -26,10 +26,16 @@ export default function Todos() {
 
   // 63. useQuery hook to fetch todos from server
   const { data, isError, isLoading } = useQuery({
+    // A unique key to identify this query in React Query's cache
     queryKey: ["todos"],
+    // The function responsible for fetching the data
     queryFn: async () => {
       const axiosInstance = await getAxiosClient();
+
+      // Use the Axios instance to send a GET request to fetch the list of todo
       const { data } = await axiosInstance.get("http://localhost:8080/todos");
+
+      // Return the fetched data (React Query will cache it under the queryKey)
       return data;
     }
   });
@@ -60,10 +66,14 @@ export default function Todos() {
 
     // 64. Conditional rendering for loading and error states
   if (isLoading) {
-    return <div>Loading Todos...</div>;
+    return (
+      <div>Loading Todos...</div>
+    )
   }
   if (isError) {
-    return <div>There was an error</div>;
+    return (
+    <div>There was an error</div>
+    )
   }
 
   // 44. Button to open the modal
