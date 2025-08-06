@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form"; 
 import getAxiosClient from "../axios-instance";
+import axios from "axios";
+import supabase from "./client";
 
 export default function Todos() {
   // 47. Create ref for the modal dialog element

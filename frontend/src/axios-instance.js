@@ -2,13 +2,19 @@ import axios from "axios";
 import supabase from "./client";
 
 const getAxiosClient = async () => {
-  const currentSession = await supabase.auth.getSession();
-  console.log("Current session:", currentSession);
-  console.log("Access token:", currentSession.data.session?.access_token);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  console.log("Current session:", session);
+  console.log("Access token:", session?.access_token);
 
   const instance = axios.create({
+    baseURL: "http://localhost:8080", // Set baseURL
     headers: {
-      Authorization: `Bearer ${currentSession.data.session.access_token}`,
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
     },
   });
 
