@@ -9,15 +9,26 @@ export default function Todos() {
   // 47. Create ref for the modal dialog element
   const modalRef = useRef();
 
-   // React Query client to invalidate queries later (need for refetching)
+  // React Query client to invalidate queries later (need for refetching)
   const queryClient = useQueryClient();
 
   // React query mutation to create a new todo on the server
   const { mutate: createNewTodo } = useMutation({
     mutationKey: ["newTodo"],
     mutationFn: async (newTodo) => {
-      const axiosInstance = await getAxiosClient();
-      const { data } = await axiosInstance.post("http://localhost:8080/todos", newTodo);
+      // Get Supabase current user token
+      const user = supabase.auth.user();
+      const token = user?.access_token;
+
+      // Get axios instance, but add Authorization header with token
+      const axiosInstance = axios.create({
+        baseURL: "http://localhost:8080",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const { data } = await axiosInstance.post("/todos", newTodo);
       return data;
     },
     onSuccess: () => {
@@ -32,10 +43,20 @@ export default function Todos() {
     queryKey: ["todos"],
     // The function responsible for fetching the data
     queryFn: async () => {
-      const axiosInstance = await getAxiosClient();
+      // Get Supabase current user token
+      const user = supabase.auth.user();
+      const token = user?.access_token;
+
+      // Get axios instance, but add Authorization header with token
+      const axiosInstance = axios.create({
+        baseURL: "http://localhost:8080",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       // Use the Axios instance to send a GET request to fetch the list of todo
-      const { data } = await axiosInstance.get("http://localhost:8080/todos");
+      const { data } = await axiosInstance.get("/todos");
 
       // Return the fetched data (React Query will cache it under the queryKey)
       return data;
@@ -66,7 +87,7 @@ export default function Todos() {
     toggleNewTodoModal();
   };
 
-    // 64. Conditional rendering for loading and error states
+  // 64. Conditional rendering for loading and error states
   if (isLoading) {
     return (
       <div>Loading Todos...</div>
@@ -74,7 +95,7 @@ export default function Todos() {
   }
   if (isError) {
     return (
-    <div>There was an error</div>
+      <div>There was an error</div>
     )
   }
 
