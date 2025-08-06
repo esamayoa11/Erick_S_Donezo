@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import todoRouter from "./routes/todo.js";
+import todoRouter from "./routes/todos.js";
 import verifyToken from "./middleware/auth.js";
 
 const app = express();
