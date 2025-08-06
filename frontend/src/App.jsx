@@ -5,8 +5,7 @@ import Login from "./pages/login";
 import Signup from "./pages/signup";
 import Todos from "./pages/todos";
 import { QueryClientProvider, QueryClient} from "@tanstack/react-query";
-
-
+import { Navigate } from "react-router-dom";
 import { useEffect } from "react";
 
 const client = new QueryClient();
@@ -16,15 +15,27 @@ function App() {
     <QueryClientProvider client={client}>
       <BrowserRouter>
         <Routes>
+          {/* Redirect / to /todos */}
+          <Route path="/" element={<Navigate to="/todos" />} />
+
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+
+          {/* Protected Todos Route inside MainLayout */}
           <Route path="/todos" element={<MainLayout />}>
-            <Route path="/todos" element={
-              <ProtectedRoute>
-                <Todos />
-              </ProtectedRoute>
-            } />
+            <Route
+              index
+              element={
+                <ProtectedRoute>
+                  <Todos />
+                </ProtectedRoute>
+              }
+            />
           </Route>
+
+          {/* Catch-all route for 404s */}
+          <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
