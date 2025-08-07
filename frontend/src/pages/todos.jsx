@@ -17,9 +17,14 @@ export default function Todos() {
     mutationKey: ["newTodo"],
     mutationFn: async (newTodo) => {
       // Get Supabase current user token
-      const user = supabase.auth.user();
-      const token = user?.access_token;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
+    console.log("Access token inside mutationFn:", token);  // << Add this debug log
+
+    if (!token) {
+      throw new Error("No access token found. User might not be logged in.");
+    }
       // Get axios instance, but add Authorization header with token
       const axiosInstance = axios.create({
         baseURL: "http://localhost:8080",
@@ -47,11 +52,17 @@ export default function Todos() {
       const user = supabase.auth.user();
       const token = user?.access_token;
 
+      console.log("Access token inside queryFn:", token);  // << ADDED THIS DEBUG LINE
+
+      if (!token) {
+      throw new Error("No access token found. User might not be logged in.");
+      }
+
       // Get axios instance, but add Authorization header with token
       const axiosInstance = axios.create({
         baseURL: "http://localhost:8080",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`, // POSSIBLE PROBLEM
         },
       });
 

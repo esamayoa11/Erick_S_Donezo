@@ -1,6 +1,9 @@
 // Import the Supabase client creation function
 import { createClient } from '@supabase/supabase-js';
 
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log("SUPABASE_SERVICE_ROLE_KEY set:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
 // Grab environment variables for the Supabase project URL and service role key
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
