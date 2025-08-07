@@ -23,7 +23,8 @@ const { register, handleSubmit } = useForm({
 
   // login logic with supabase 
   const loginUser = async (values) => {
-    const { error } = await supabase.auth.signInWithPassword(values);
+    // Destructure both data and error from Supabase response
+    const { data, error } = await supabase.auth.signInWithPassword(values);
 
     if (error) {
       // Show the error in an alert
@@ -32,6 +33,12 @@ const { register, handleSubmit } = useForm({
         message: error.message
       });
     } else {
+      // NEW: To Extract the access token from Supabase response
+      const token = data.session.access_token;
+
+      // NEW: Log to console for testing (curl requests to backend via terminal)
+      console.log("ACCESS TOKEN:", token);
+      
       // Go to todos page on success
       navigate("/todos");
     }
