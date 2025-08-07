@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form"; 
-import getAxiosClient from "../axios-instance";
 import axios from "axios";
 import supabase from "../client";
 
@@ -9,23 +8,24 @@ export default function Todos() {
   // 47. Create ref for the modal dialog element
   const modalRef = useRef();
 
-  // React Query client to invalidate queries later (need for refetching)
+  // React Query client to invalidate queries later (used to refresh todos after mutation)
   const queryClient = useQueryClient();
 
-  // React query mutation to create a new todo on the server
+  // 60. Mutation: Create a new todo using Supabase-authenticated request
   const { mutate: createNewTodo } = useMutation({
     mutationKey: ["newTodo"],
     mutationFn: async (newTodo) => {
-      // Get Supabase current user token
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+      // 1. Get access token from Supabase session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-    console.log("Access token inside mutationFn:", token);  // << Add this debug log
+      console.log("Access token inside mutationFn:", token); // Debug
 
-    if (!token) {
-      throw new Error("No access token found. User might not be logged in.");
-    }
-      // Get axios instance, but add Authorization header with token
+      if (!token) throw new Error("No access token found.");
+
+      // 2. Create axios instance with token in Authorization header
       const axiosInstance = axios.create({
         baseURL: "http://localhost:8080",
         headers: {
@@ -33,48 +33,72 @@ export default function Todos() {
         },
       });
 
+      // 3. Send new todo to backend
       const { data } = await axiosInstance.post("/todos", newTodo);
       return data;
     },
     onSuccess: () => {
-      // Refetch todos after successfully creating a new one
-      queryClient.invalidateQueries(["todos"]);
+      queryClient.invalidateQueries(["todos"]); // Refresh list after creating
     }
   });
 
-  // 63. useQuery hook to fetch todos from server
-  const { data, isError, isLoading } = useQuery({
-    // A unique key to identify this query in React Query's cache
-    queryKey: ["todos"],
-    // The function responsible for fetching the data
-    queryFn: async () => {
-      // Get Supabase current user token
-      const user = supabase.auth.user();
-      const token = user?.access_token;
+  // 61. Mutation: Mark a todo as completed using Supabase-authenticated request
+  const { mutate: markAsCompleted } = useMutation({
+    mutationKey: ["markAsCompleted"],
+    mutationFn: async (todoId) => {
+      // 1. Get Supabase token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      console.log("Access token inside queryFn:", token);  // << ADDED THIS DEBUG LINE
+      console.log("Access token inside markAsCompleted:", token); // Debug
 
-      if (!token) {
-      throw new Error("No access token found. User might not be logged in.");
-      }
+      if (!token) throw new Error("No access token found.");
 
-      // Get axios instance, but add Authorization header with token
+      // 2. Authenticated axios call
       const axiosInstance = axios.create({
         baseURL: "http://localhost:8080",
         headers: {
-          Authorization: `Bearer ${token}`, // POSSIBLE PROBLEM
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      // Use the Axios instance to send a GET request to fetch the list of todo
-      const { data } = await axiosInstance.get("/todos");
+      // 3. Send update to backend
+      const { data } = await axiosInstance.put(`/todos/${todoId}/completed`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["todos"]); // Refresh list after marking complete
+    }
+  });
 
-      // Return the fetched data (React Query will cache it under the queryKey)
+  // 63. useQuery hook to fetch todos from the backend
+  const { data, isError, isLoading } = useQuery({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      console.log("Access token inside queryFn:", token); // Debug
+
+      if (!token) throw new Error("No access token found.");
+
+      const axiosInstance = axios.create({
+        baseURL: "http://localhost:8080",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const { data } = await axiosInstance.get("/todos");
       return data;
     }
   });
 
-  // 49. Function to toggle the modal open/close
+  // 49. Toggle modal visibility using a ref
   const toggleNewTodoModal = () => {
     if (modalRef.current.open) {
       modalRef.current.close();
@@ -83,74 +107,71 @@ export default function Todos() {
     }
   };
 
-  // 51. Set up react-hook-form
-  const { register, handleSubmit } = useForm({
+  // 51. Set up react-hook-form for form handling
+  const { register, handleSubmit, reset } = useForm({
     defaultValues: {
       name: "",
       description: ""
     }
   });
 
-  // 54. Placeholder submit handler — just closes modal for now
+  // 54. Handle form submission and create todo
   const handleNewTodo = (values) => {
-    console.log("Form submitted with:", values);  // debug log
+    console.log("Form submitted with:", values); // Debug
     createNewTodo(values);
-    toggleNewTodoModal();
+    reset(); // Clear form after submit
+    toggleNewTodoModal(); // Close modal
   };
 
-  // 64. Conditional rendering for loading and error states
-  if (isLoading) {
-    return (
-      <div>Loading Todos...</div>
-    )
-  }
-  if (isError) {
-    return (
-      <div>There was an error</div>
-    )
-  }
+  // 64. Show loading or error state if needed
+  if (isLoading) return <div className="text-center p-4">Loading Todos...</div>;
+  if (isError) return <div className="text-center text-red-600 p-4">Error loading todos.</div>;
 
-  // 44. Button to open the modal
+  // 44. Button to open the new todo modal
   function NewTodoButton() {
     return (
-      <button className="btn btn-primary" onClick={toggleNewTodoModal}>
-        New Todo
-      </button>
+      <div className="flex justify-center my-6">
+        <button className="btn btn-primary" onClick={toggleNewTodoModal}>
+          + New Todo
+        </button>
+      </div>
     );
   }
 
-  // 46. Modal with the form and inputs registered with react-hook-form
+  // 46. Modal with form for creating a new todo
   function TodoModal() {
     return (
       <dialog ref={modalRef} className="modal">
         <div className="modal-box">
-          <h3 className="font-bold text-lg">New Todo</h3>
-          {/* 55. Add onSubmit handler with handleSubmit wrapping handleNewTodo */}
-          <form onSubmit={handleSubmit(handleNewTodo)}>
+          <h3 className="font-bold text-lg mb-4">New Todo</h3>
+          <form onSubmit={handleSubmit(handleNewTodo)} className="space-y-4">
+            {/* Todo Name */}
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text">Name of Todo</span>
               </div>
-              {/* 52. Register input "name" */}
               <input
                 type="text"
-                placeholder="Type here"
+                placeholder="Type name here"
                 className="input input-bordered w-full"
-                {...register("name")}
+                {...register("name", { required: true })}
               />
             </label>
+
+            {/* Todo Description */}
             <label className="form-control w-full">
               <div className="label">
                 <span className="label-text">Description</span>
               </div>
-              {/* 53. Register input "description" */}
               <input
                 type="text"
-                placeholder="Type here"
+                placeholder="Type description here"
                 className="input input-bordered w-full"
                 {...register("description")}
               />
             </label>
+
+            {/* Modal Actions */}
             <div className="modal-action">
               <button type="submit" className="btn btn-primary">
                 Create Todo
@@ -160,7 +181,7 @@ export default function Todos() {
                 onClick={toggleNewTodoModal}
                 className="btn btn-ghost"
               >
-                Close
+                Cancel
               </button>
             </div>
           </form>
@@ -169,36 +190,51 @@ export default function Todos() {
     );
   }
 
-  // 65 & 67 Component to display the list of todo items
+  // 65. Renders list of todos with spacing, styling, and completed label
   function TodoItemList() {
     return (
-      <div className="w-lg h-sm flex column items-center justify-center gap-4">
-        {data.success && data.todos && data.todos.length >= 1 ? (
-          <ul className="flex column items-center justify-center gap-4">
+      <div className="max-w-3xl mx-auto px-4">
+        {data.success && data.todos && data.todos.length > 0 ? (
+          <ul className="flex flex-col gap-6">
             {data.todos.map((todo) => (
-              <li key={todo.id} className="inline-flex items-center gap-4">
-                <div className="w-md">
-                  <h3 className="text-lg">{todo.name}</h3>
-                  <p className="text-sm">{todo.description}</p>
+              <li
+                key={todo.id}
+                className="p-4 bg-white rounded-lg shadow-md border border-gray-200 flex justify-between items-start"
+              >
+                {/* Left: Name + Description */}
+                <div className="flex-1">
+                  <h3 className={`text-lg font-bold ${todo.completed ? "line-through text-gray-400" : ""}`}>
+                    {todo.name}
+                  </h3>
+                  <p className={`mt-1 text-sm ${todo.completed ? "text-gray-400 italic" : "text-gray-600"}`}>
+                    {todo.description || "No description provided."}
+                  </p>
                 </div>
-                <div className="w-md">
-                  <label className="swap">
-                    <input type="checkbox" onClick={() => markAsCompleted(todo.id)} />
-                    <div className="swap-on">Yes</div>
-                    <div className="swap-off">No</div>
-                  </label>
+
+                {/* Right: Complete checkbox */}
+                <div className="ml-4 pt-2">
+                  {!todo.completed ? (
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-success"
+                      onChange={() => markAsCompleted(todo.id)}
+                      title="Mark as completed"
+                    />
+                  ) : (
+                    <span className="text-xs text-green-600 font-medium">Completed</span>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p>No todos found. Create one!</p>
+          <p className="text-center text-gray-500 py-8">No todos yet. Create one!</p>
         )}
       </div>
     );
   }
 
-  // Render the button, list, and modal
+  // 66. Render page with button, list, and modal
   return (
     <>
       <NewTodoButton />
@@ -206,9 +242,4 @@ export default function Todos() {
       <TodoModal />
     </>
   );
-}
-
-// Placeholder for marking todo as completed (no frontend functionality yet)
-function markAsCompleted(id) {
-  console.log(`Mark todo ${id} as completed (functionality coming soon)`);
 }

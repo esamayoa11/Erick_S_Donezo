@@ -28,6 +28,13 @@ export default function ProtectedRoute({ children }) {
     };
   }, []);
 
+  // Log access token to inspect in browser DevTools Console
+  useEffect(() => {
+    if (session) {
+      console.log("Access token:", session.access_token);
+    }
+  }, [session]);
+
   // 36. Add conditional logic below UseEffect 
   if (!isSessionChecked) {
     return <div>Loading...</div>;

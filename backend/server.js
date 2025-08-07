@@ -1,5 +1,7 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
+
+console.log('SUPABASE_JWT_SECRET:', process.env.SUPABASE_JWT_SECRET ? 'Loaded' : 'Missing');
 
 import express from "express";
 import cors from "cors";

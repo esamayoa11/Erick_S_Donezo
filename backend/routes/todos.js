@@ -1,134 +1,171 @@
 import express from "express";
 const router = express.Router();
 import prisma from "../db/index.js";
+import { createClient } from "@supabase/supabase-js";
 
-router.get('/', async (req, res) => {
-    // Gets all the todos from the database
-    const todos = await prisma.todo.findMany();
-    // Responds back to the client with json with a success status and the todos array
-    res.status(200).json({
-        success: true,
-        todos,
+// Supabase client (used for verifying tokens)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// Middleware to verify JWT and attach user to request
+async function authenticate(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  // 1. Ensure Authorization header exists
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Missing or invalid Authorization header",
     });
-});
+  }
 
-// Define a POST route for creating a new todo
-router.post('/', async (req, res) => {
-    // Destructure `name` and `description` from the request body
-    const { name, description } = req.body;
-    try {
-        // Use Prisma to create a new todo entry in the database
-        const newTodo = await prisma.todo.create({
-            data: {
-                name,               // Set the name of the todo from the request
-                description,        // Set the description of the todo from the request
-                completed: false,   // Default value for `completed` is set to false
-                userId: req.user.sub, // Assign the user ID
-            },
-        });
-        
-        // Check if the new todo was created successfully
-        if (newTodo) {
-            // Respond with a success status and include the ID of the newly created todo
-            res.status(201).json({
-                success: true,
-                todo: newTodo.id,
-            });
-        } else {
-            // Respond with a failure status if todo creation failed
-            res.status(500).json({
-                success: false,
-                message: "Failed to create new todo",
-            });
-        }
-    } catch (e) {
-        // Log the error for debugging purposes
-        console.log(e);
-        // Respond with a generic error message if something goes wrong
-        res.status(500).json({
-            success: false,
-            message: "Something went wrong, please try again later",
-        });
-    }
-});
+  const token = authHeader.split(" ")[1];
 
-// Define a PUT route for marking a todo as completed
-router.put("/:todoId/completed", async (req, res) => {
-  // Extract the `todoId` from the route parameter and convert it to a number
-  const todoId = Number(req.params.todoId);
+  // 2. Validate JWT using Supabase
+  const { data, error } = await supabase.auth.getUser(token);
 
+  if (error || !data?.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
+
+  // 3. Attach user object to the request for access in routes
+  req.user = data.user;
+  next();
+}
+
+// GET: Fetch all todos for the authenticated user
+router.get("/", authenticate, async (req, res) => {
   try {
-    // Use Prisma to update the todo with the specified ID
-    const todo = await prisma.todo.update({
-      where: {
-        id: todoId,        // Match the todo based on its unique ID
-      },
-      data: {
-        completed: true,  // Update the `completed` field to `true`
-      },
+    const todos = await prisma.todo.findMany({
+      where: { userId: req.user.id },
+      orderBy: { id: "desc" },
     });
 
-    // Respond with a success status and include the updated todo's ID
     res.status(200).json({
       success: true,
-      todo: todo.id,
+      todos,
     });
-  } catch (e) {
-    // Handle any errors that occur during the update
+  } catch (error) {
+    console.error("GET /todos error:", error);
     res.status(500).json({
       success: false,
-      message: "Something went wrong, please try again later",
+      message: "Error fetching todos",
     });
   }
 });
 
-// Define a DELETE route for removing a todo by its ID
-router.delete("/:todoId", async (req, res) => {
-  // Extract the `todoId` from the route parameter and convert it to a number
-  const todoId = Number(req.params.todoId);
+// POST: Create a new todo
+router.post("/", authenticate, async (req, res) => {
+  const { name, description } = req.body;
 
   try {
-    // Use Prisma to delete the todo with the specified ID
-    const todo = await prisma.todo.findUnique({
-      where: {
-        id: todoId, // Match the todo based on its unique ID
+    const newTodo = await prisma.todo.create({
+      data: {
+        name,
+        description,
+        completed: false,
+        userId: req.user.id, // Associate todo with authenticated user
       },
     });
 
-    // If todo doesn't exist, return a 404 error
-    if (!todo) {
-        return res.status(404).json({
-            success: false,
-            message: "Todo not found",
-        });
-    }
-
-    // Check if todo is completed 
-    if (!todo.completed) {
-        return res.status(400).json({
-            success: false, 
-            message: "Cannot delete an incomplete todo task",
-        });
-
-    }
-
-    // If todo is completed, delete it
-    await prisma.todo.delete ({
-        where: {
-            id: todoId,
-        },
-    });
-
-    // Respond with a success status and confirmation of the deletion
-    res.status(200).json({
+    res.status(201).json({
       success: true,
-      todo: todoId, // Return the deleted todo's ID for reference
+      todo: newTodo.id,
     });
-  } catch (e) {
-    // Handle any errors that occur during the deletion process
+  } catch (error) {
+    console.error("POST /todos error:", error);
     res.status(500).json({
       success: false,
-      message: "Something went wrong, please try again later",
+      message: "Failed to create new todo",
+    });
+  }
+});
+
+// PUT: Mark a todo as completed
+router.put("/:todoId/completed", authenticate, async (req, res) => {
+  const todoId = Number(req.params.todoId);
+
+  try {
+    // Find the todo and verify ownership
+    const todo = await prisma.todo.findUnique({
+      where: { id: todoId },
+    });
+
+    if (!todo || todo.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Todo not found or unauthorized",
+      });
+    }
+
+    const updated = await prisma.todo.update({
+      where: { id: todoId },
+      data: { completed: true },
+    });
+
+    res.status(200).json({
+      success: true,
+      todo: updated.id,
+    });
+  } catch (error) {
+    console.error("PUT /todos/:id/completed error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to mark todo as completed",
+    });
+  }
+});
+
+// DELETE: Only allow deleting a completed todo
+router.delete("/:todoId", authenticate, async (req, res) => {
+  const todoId = Number(req.params.todoId);
+
+  try {
+    const todo = await prisma.todo.findUnique({
+      where: { id: todoId },
+    });
+
+    if (!todo) {
+      return res.status(404).json({
+        success: false,
+        message: "Todo not found",
+      });
+    }
+
+    // Ensure the user owns the todo
+    if (todo.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // Only allow deletion if completed
+    if (!todo.completed) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete an incomplete todo",
+      });
+    }
+
+    await prisma.todo.delete({
+      where: { id: todoId },
+    });
+
+    res.status(200).json({
+      success: true,
+      todo: todoId,
+    });
+  } catch (error) {
+    console.error("DELETE /todos/:id error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete todo",
     });
   }
 });

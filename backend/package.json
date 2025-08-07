@@ -11,7 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^5.19.1",
+    "@prisma/client": "^6.13.0",
     "@supabase/supabase-js": "^2.53.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
@@ -19,6 +19,6 @@
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "prisma": "^6.13.0"
   }
 }

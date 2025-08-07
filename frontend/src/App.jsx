@@ -7,6 +7,7 @@ import Todos from "./pages/todos";
 import { QueryClientProvider, QueryClient} from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { useEffect } from "react";
+import supabase from "./client";
 
 const client = new QueryClient();
 
